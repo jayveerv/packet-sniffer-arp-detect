@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>How it works</h1>
+<p class="sub">Every packet is decoded (Ethernet, ARP, IP, TCP, UDP, ICMP, DNS, DHCP, HTTP). ARP packets also go to the spoofing detector, which keeps an IP &rarr; MAC table.</p>
+<div class="card" style="margin-bottom:16px"><h2>Detection rules &middot; MITRE ATT&amp;CK {{ mitre_id }} ({{ mitre_name }})</h2>
+<table>
+  <tr><th>Alert</th><th>When</th><th>Severity</th></tr>
+  <tr><td><b>IP-MAC conflict</b></td><td>An IP that was at one MAC is claimed by a different MAC (within {{ 300 }} s of last being seen).</td><td><span class="sev High">High</span></td></tr>
+  <tr><td><b>Whitelisted MAC mismatch</b></td><td>A trusted IP (for example the router) is claimed by a MAC that is not in the whitelist.</td><td><span class="sev High">High</span></td></tr>
+  <tr><td><b>Gratuitous ARP flood</b></td><td>More than {{ st.threshold }} gratuitous ARPs from one MAC within {{ st.window }} s.</td><td><span class="sev High">High</span></td></tr>
+  <tr><td><b>Unsolicited ARP reply</b></td><td>An "is-at" reply without a matching "who-has" request in the last 2 s. Medium when it also changes a mapping.</td><td><span class="sev Low">Low</span> / <span class="sev Medium">Medium</span></td></tr>
+  <tr><td><b>IP reassigned</b></td><td>A new MAC takes an IP that was silent for more than 300 s: normal DHCP reuse, reported for context.</td><td><span class="sev Low">Low</span></td></tr>
+</table></div>
+<div class="grid g2">
+  <div class="card"><h2>Reducing false positives</h2><ul>
+    <li>A single gratuitous ARP (a device announcing itself after DHCP) is never an alert on its own.</li>
+    <li>ARP probes with sender 0.0.0.0 are ignored.</li>
+    <li>IP reuse after a long silence is Low, not High.</li>
+    <li>Trusted IP=MAC pairs and the flood threshold can be set on the dashboard.</li>
+    <li>Repeated alerts are grouped and counted instead of flooding the panel.</li>
+    <li>Still expect noise from VRRP/HSRP router failover, virtual-machine bridges and phone hotspots: whitelist them.</li></ul></div>
+  <div class="card"><h2>Sample captures</h2><table>
+    {% for n, (desc, _) in samples.items() %}<tr><td class="mono"><a href="{{ url_for('dashboard', dsid='s-' + n) }}">{{ n }}</a></td><td class="muted">{{ desc }}</td></tr>{% endfor %}</table>
+    <p class="muted" style="font-size:13px">All samples are built offline with Scapy and written straight to file. No packet was ever sent on a network.</p></div>
+</div>
+<div class="card" style="margin-top:16px"><h2>Limits</h2>
+<p>HTTPS and other encrypted traffic is shown as TLS without content. HTTP is decoded only when the request or response line is in the packet. Uploads are limited to {{ max_mb }} MB.</p></div>
+{% endblock %}

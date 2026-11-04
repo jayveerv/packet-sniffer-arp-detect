@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Packet Sniffer + ARP Spoofing Detector{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect rx='8' width='32' height='32' fill='%2322d3ee'/><text x='16' y='22' font-size='14' text-anchor='middle' font-family='Arial' font-weight='bold' fill='%23062430'>PS</text></svg>">
+</head>
+<body>
+<header><div class="bar">
+  <a class="brand" href="{{ url_for('index') }}"><span class="logo">PS</span><span>Packet Sniffer<small>+ ARP spoofing detector v{{ version }}</small></span></a>
+  <nav>
+    {% set p = request.endpoint %}
+    <a href="{{ url_for('index') }}" class="{{ 'on' if p in ('dashboard','packet') }}">Dashboard</a>
+    <a href="{{ url_for('live') }}" class="{{ 'on' if p == 'live' }}">Live capture</a>
+    <a href="{{ url_for('about') }}" class="{{ 'on' if p == 'about' }}">How it works</a>
+  </nav>
+</div></header>
+{% if public_mode %}<div class="notice">Hosted demo: analyse the bundled sample captures or upload your own .pcap (max {{ max_mb }} MB). Live capture is off online. Uploads are private and deleted after {{ retention }} hours.</div>{% endif %}
+<main>
+{% with msgs = get_flashed_messages(with_categories=true) %}{% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}{% endwith %}
+{% block body %}{% endblock %}
+</main>
+<footer>Basic Packet Sniffer + ARP Spoofing Detector &middot; educational project by Jayveer Vasava &middot; detection only, never sends packets &middot; MITRE ATT&amp;CK {{ mitre_id }}</footer>
+</body>
+</html>

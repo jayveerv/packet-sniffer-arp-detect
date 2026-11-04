@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ name }} - Packet Sniffer{% endblock %}
+{% block body %}
+<div class="card" style="margin-bottom:16px">
+  <div class="row" style="justify-content:space-between;align-items:flex-start">
+    <div>
+      <h2 style="margin-bottom:8px">Choose a capture</h2>
+      <div class="ds">
+        {% for n, (desc, _) in samples.items() %}<a href="{{ url_for('dashboard', dsid='s-' + n) }}" class="{{ 'on' if dsid == 's-' + n }}" title="{{ desc }}">{{ n }}</a>{% endfor %}
+        {% for k, n in uploads %}<a href="{{ url_for('dashboard', dsid=k) }}" class="{{ 'on' if dsid == k }}">{{ n }}</a>{% endfor %}
+      </div>
+    </div>
+    <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data" class="row">
+      <input type="file" name="file" accept=".pcap,.pcapng,.cap" required style="max-width:230px">
+      <button class="btn primary">Upload pcap</button>
+    </form>
+  </div>
+</div>
+
+<h1 style="word-break:break-all">{{ name }}</h1>
+<p class="sub">{% if dsid.startswith('s-') %}{{ samples[dsid[2:]][0] }}{% else %}Uploaded capture{% endif %}</p>
+
+<div class="grid g4" style="margin-bottom:16px">
+  <div class="card stat"><b>{{ '{:,}'.format(stats.packets) }}</b><span>Packets &middot; {{ '{:,}'.format(stats.bytes) }} bytes</span></div>
+  <div class="card stat"><b>{{ stats.avg_pps }}</b><span>Avg pkt/s &middot; peak {{ stats.peak_pps }} &middot; {{ stats.duration }} s</span></div>
+  <div class="card stat" style="color:var(--red)"><b>{{ summary.High }}</b><span>High alerts</span></div>
+  <div class="card stat" style="color:var(--amber)"><b>{{ summary.Medium }} <span style="color:#60a5fa;font-size:30px">&middot; {{ summary.Low }}</span></b><span>Medium &middot; Low alerts</span></div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="row" style="justify-content:space-between"><h2>ARP spoofing alerts</h2><span class="tag">MITRE ATT&amp;CK {{ mitre_id }} &middot; {{ mitre_name }}</span></div>
+  {% if alerts %}
+  <div class="scroll"><table>
+    <tr><th>Severity</th><th>Type</th><th>IP</th><th>MAC</th><th class="hide-sm">Previous MAC</th><th>Count</th><th class="hide-sm">First seen (UTC)</th><th>Packet</th></tr>
+    {% for al in alerts %}
+    <tr><td><span class="sev {{ al.severity }}">{{ al.severity }}</span></td><td><b>{{ al.type }}</b><div class="muted" style="font-size:12.5px">{{ al.detail }}</div></td>
+      <td class="mono">{{ al.ip }}</td><td class="mono">{{ al.mac }}</td><td class="mono hide-sm">{{ al.old_mac or '-' }}</td><td>{{ al.count }}</td>
+      <td class="hide-sm muted">{{ al.time|utc }}</td><td><a href="{{ url_for('packet', dsid=dsid, no=al.packet) }}">#{{ al.packet }}</a></td></tr>
+    {% endfor %}
+  </table></div>
+  {% else %}<div class="ok-box">No ARP spoofing detected in this capture.</div>{% endif %}
+</div>
+
+<div class="grid g2" style="margin-bottom:16px">
+  <div class="card"><h2>Protocols</h2>{{ proto_chart|safe }}</div>
+  <div class="card"><h2>Packets per second</h2>{{ pps_chart|safe }}</div>
+</div>
+
+<div class="grid g2" style="margin-bottom:16px">
+  <div class="card"><h2>Top talkers</h2>
+    <table><tr><th>Host</th><th>Packets</th><th>Bytes</th></tr>
+    {% for h, p, b in stats.top_talkers[:8] %}<tr><td class="mono"><a href="{{ url_for('dashboard', dsid=dsid, ip=h) }}">{{ h }}</a></td><td>{{ p }}</td><td>{{ '{:,}'.format(b) }}</td></tr>{% endfor %}
+    </table></div>
+  <div class="card"><h2>Learned IP &rarr; MAC table</h2>
+    {% if arp_table %}<table><tr><th>IP</th><th>MAC</th><th class="hide-sm">Last seen (UTC)</th></tr>
+    {% for ip_, e in arp_table %}<tr><td class="mono">{{ ip_ }}</td><td class="mono">{{ e.mac }}</td><td class="hide-sm muted">{{ e.last|utc }}</td></tr>{% endfor %}
+    </table>{% else %}<div class="empty">No ARP traffic.</div>{% endif %}
+    <p class="muted" style="font-size:12.5px;margin:8px 0 0">The first MAC seen for an IP is kept as the trusted mapping; a different MAC claiming it raises an alert.</p></div>
+</div>
+
+<div class="card" style="margin-bottom:16px">
+  <div class="row" style="justify-content:space-between"><h2>Packets</h2>
+    <div class="row" style="gap:6px">
+      <a class="btn small" href="{{ url_for('export', dsid=dsid, kind='packets.pcap', proto=proto, ip=ip, port=port) }}">Save .pcap{{ ' (filtered)' if proto or ip or port }}</a>
+      <a class="btn small" href="{{ url_for('export', dsid=dsid, kind='alerts.json') }}">Alerts JSON</a>
+      <a class="btn small" href="{{ url_for('export', dsid=dsid, kind='alerts.csv') }}">Alerts CSV</a>
+      <a class="btn small" href="{{ url_for('export', dsid=dsid, kind='report.html') }}" target="_blank">HTML report</a>
+    </div></div>
+  <form class="row" method="get" style="margin:6px 0 12px">
+    <select name="proto" aria-label="Protocol"><option value="">All protocols</option>{% for p in protocols %}<option {{ 'selected' if proto == p }}>{{ p }}</option>{% endfor %}</select>
+    <input type="text" name="ip" value="{{ ip }}" placeholder="IP address" style="width:150px">
+    <input type="number" name="port" value="{{ port }}" placeholder="Port" style="width:100px" min="0" max="65535">
+    <button class="btn">Filter</button>{% if proto or ip or port %}<a class="btn" href="{{ url_for('dashboard', dsid=dsid) }}">Clear</a>{% endif %}
+    <span class="muted" style="font-size:13px">{{ total_rows }} of {{ stats.packets }} packets</span>
+  </form>
+  <div class="scroll"><table>
+    <tr><th>No.</th><th>Time</th><th>Source</th><th>Destination</th><th>Proto</th><th class="hide-sm">MAC (src)</th><th>Len</th><th>Info</th></tr>
+    {% for r in rows %}
+    <tr class="{{ 'a-' + r.alert if r.alert }}"><td><a href="{{ url_for('packet', dsid=dsid, no=r.no) }}">{{ r.no }}</a></td><td class="muted">{{ '%.3f'|format(r.rel) }}</td>
+      <td class="mono">{{ r.src or '-' }}{{ ':' ~ r.sport if r.sport is not none }}</td><td class="mono">{{ r.dst or '-' }}{{ ':' ~ r.dport if r.dport is not none }}</td>
+      <td><span class="tag">{{ r.proto }}</span></td><td class="mono hide-sm muted">{{ r.src_mac or '' }}</td><td>{{ r.len }}</td>
+      <td class="info" title="{{ r.info }}">{{ r.info }}{% if r.alert %} <span class="sev {{ r.alert }}">{{ r.alert }}</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="8" class="empty">No packets match the filter.</td></tr>{% endfor %}
+  </table></div>
+  {% if pages > 1 %}<div class="pager">
+    {% if page > 1 %}<a class="btn small" href="{{ url_for('dashboard', dsid=dsid, proto=proto, ip=ip, port=port, page=page-1) }}">&larr; Prev</a>{% endif %}
+    <span class="muted">Page {{ page }} of {{ pages }}</span>
+    {% if page < pages %}<a class="btn small" href="{{ url_for('dashboard', dsid=dsid, proto=proto, ip=ip, port=port, page=page+1) }}">Next &rarr;</a>{% endif %}
+  </div>{% endif %}
+</div>
+
+<form class="card" method="post" action="{{ url_for('save_settings') }}">
+  <h2>Detection settings</h2>
+  <p class="muted" style="margin-top:-6px;font-size:13.5px">Tune the detector to cut false positives. Trusted pairs (for example your router) raise a High alert if any other MAC claims that IP.</p>
+  <input type="hidden" name="back" value="{{ request.full_path }}">
+  <div class="row">
+    <label class="opt">Flood threshold <input type="number" name="threshold" value="{{ st.threshold }}" min="1" style="width:90px"></label>
+    <label class="opt">gratuitous ARPs per <input type="number" step="0.1" name="window" value="{{ st.window }}" min="0.1" style="width:80px"> s</label>
+  </div>
+  <label class="muted" style="display:block;margin:10px 0 4px;font-size:13.5px">Trusted IP=MAC pairs (comma or new line separated)</label>
+  <textarea name="whitelist" placeholder="192.168.1.1=00:11:22:33:44:01">{{ st.whitelist }}</textarea>
+  <div style="margin-top:10px"><button class="btn primary">Apply</button></div>
+</form>
+{% endblock %}

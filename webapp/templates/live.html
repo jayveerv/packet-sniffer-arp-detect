@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Live capture</h1>
+<p class="sub">Captures real packets from a network interface for a few seconds, then opens them in the dashboard. Detection only: nothing is ever sent.</p>
+{% if ok %}
+<form class="card" method="post">
+  <div class="row">
+    <label class="opt">Interface
+      <select name="iface"><option value="">Default</option>{% for i in ifaces %}<option value="{{ i.name }}">{{ i.name }} {{ i.ip }} {{ i.description }}</option>{% endfor %}</select></label>
+    <label class="opt">Seconds <input type="number" name="seconds" value="15" min="1" max="120" style="width:80px"></label>
+    <button class="btn primary">Start capture</button>
+  </div>
+  <p class="muted" style="font-size:13px;margin:10px 0 0">The page waits until the capture finishes. Only capture networks you own or are allowed to monitor.</p>
+</form>
+{% else %}
+<div class="card">
+  <p class="flash error" style="margin:0 0 12px">{{ msg }}</p>
+  <p>You can still analyse traffic without live capture:</p>
+  <ul>
+    <li>Open one of the <a href="{{ url_for('index') }}">bundled sample captures</a>.</li>
+    <li>Record traffic with Wireshark on your own computer and upload the .pcap on the dashboard.</li>
+    <li>Run the project locally: on Windows install <a href="https://npcap.com" target="_blank" rel="noopener">Npcap</a> and start <span class="mono">run.bat</span> as Administrator; on Linux use <span class="mono">sudo</span>.</li>
+  </ul>
+</div>
+{% endif %}
+{% endblock %}

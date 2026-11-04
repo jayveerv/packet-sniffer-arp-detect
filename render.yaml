@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: packet-sniffer-arp-detector
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: waitress-serve --threads=8 --listen=0.0.0.0:$PORT webapp.app:app
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: PUBLIC_MODE
+        value: "1"
+      - key: RETENTION_HOURS
+        value: "24"
+      - key: MAX_UPLOAD_MB
+        value: "10"
+      - key: SECRET_KEY
+        generateValue: true

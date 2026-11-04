@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+webapp_data/
+reports/
+.pytest_cache/
+capture_*.pcap
