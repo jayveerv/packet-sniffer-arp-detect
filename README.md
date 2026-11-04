@@ -1,6 +1,6 @@
 # Basic Packet Sniffer + ARP Spoofing Detector
 
-[![tests](https://github.com/jayveerv/packet-sniffer-arp-detector/actions/workflows/tests.yml/badge.svg)](https://github.com/jayveerv/packet-sniffer-arp-detector/actions/workflows/tests.yml)
+[![tests](https://github.com/jayveerv/packet-sniffer-arp-detect/actions/workflows/tests.yml/badge.svg)](https://github.com/jayveerv/packet-sniffer-arp-detect/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Scapy](https://img.shields.io/badge/scapy-2.5%2B-orange)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -164,7 +164,7 @@ ARP alerts: 4  (High 2, Medium 2, Low 0)  MITRE ATT&CK T1557.002 Adversary-in-th
 ## Project structure
 
 ```
-packet-sniffer-arp-detector/
+packet-sniffer-arp-detect/
 ├── pkt/
 │   ├── parser.py        # Scapy packet -> readable record
 │   ├── filters.py       # protocol / IP / port filters
