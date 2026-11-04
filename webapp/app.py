@@ -36,6 +36,7 @@ RETENTION_H = float(os.environ.get("RETENTION_HOURS", "24"))
 MAX_MB = int(os.environ.get("MAX_UPLOAD_MB", "10"))
 MAX_PACKETS = int(os.environ.get("MAX_PACKETS", "50000"))
 PAGE = 100
+PCAP_MAGIC = {b"\xd4\xc3\xb2\xa1", b"\xa1\xb2\xc3\xd4", b"\x4d\x3c\xb2\xa1", b"\xa1\xb2\x3c\x4d", b"\x0a\x0d\x0d\x0a"}
 DEFAULT_DS = "s-arp_spoof.pcap"
 
 app = Flask(__name__)
@@ -196,12 +197,21 @@ def upload():
     token = secrets.token_hex(6)
     path = os.path.join(visitor_dir(), token + ".pcap")
     f.save(path)
-    try:
-        from scapy.utils import PcapReader
-        with PcapReader(path) as r:
-            next(iter(r), None)
-    except Exception:
-        os.remove(path)
+    with open(path, "rb") as fh:
+        magic = fh.read(4)
+    valid = magic in PCAP_MAGIC
+    if valid:
+        try:
+            from scapy.utils import PcapReader
+            with PcapReader(path) as r:
+                next(iter(r), None)
+        except Exception:
+            valid = False
+    if not valid:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
         flash("That file is not a valid pcap / pcapng capture.", "error")
         return redirect(url_for("index"))
     names = session.get("names", {})

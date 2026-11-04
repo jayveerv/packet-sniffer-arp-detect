@@ -22,6 +22,10 @@ PC, PC_MAC = "192.168.1.10", "3c:52:82:aa:10:10"
 EVIL = "de:ad:be:ef:00:66"
 
 
+E = dict(src="02:00:00:00:00:01", dst="02:00:00:00:00:02")
+I = dict(src="10.0.0.1", dst="10.0.0.2")
+
+
 def stamp(pkt, t=100.0):
     pkt.time = t
     return pkt
@@ -33,33 +37,33 @@ def test_parse_arp_request_and_reply():
     r = parse_packet(stamp(Ether(src=PC_MAC, dst="ff:ff:ff:ff:ff:ff") / ARP(op=1, hwsrc=PC_MAC, psrc=PC, pdst=GW)))
     assert r["proto"] == "ARP" and r["src"] == PC and r["dst"] == GW and r["src_mac"] == PC_MAC
     assert r["info"] == f"Who has {GW}? Tell {PC}"
-    r = parse_packet(stamp(Ether() / ARP(op=2, hwsrc=GW_MAC, psrc=GW, pdst=PC)))
+    r = parse_packet(stamp(Ether(**E) / ARP(op=2, hwsrc=GW_MAC, psrc=GW, pdst=PC)))
     assert r["info"] == f"{GW} is at {GW_MAC}"
-    r = parse_packet(stamp(Ether() / ARP(op=2, hwsrc=GW_MAC, psrc=GW, pdst=GW)))
+    r = parse_packet(stamp(Ether(**E) / ARP(op=2, hwsrc=GW_MAC, psrc=GW, pdst=GW)))
     assert "gratuitous" in r["info"]
 
 
 def test_parse_tcp_http_tls():
-    r = parse_packet(stamp(Ether() / IP(src=PC, dst="1.2.3.4") / TCP(sport=5000, dport=80, flags="S")))
+    r = parse_packet(stamp(Ether(**E) / IP(src=PC, dst="1.2.3.4") / TCP(sport=5000, dport=80, flags="S")))
     assert (r["proto"], r["sport"], r["dport"]) == ("TCP", 5000, 80) and "SYN" in r["info"]
-    r = parse_packet(stamp(Ether() / IP(src=PC, dst="1.2.3.4") / TCP(sport=5000, dport=80, flags="PA") / Raw(b"GET /a HTTP/1.1\r\nHost: x\r\n\r\n")))
+    r = parse_packet(stamp(Ether(**E) / IP(src=PC, dst="1.2.3.4") / TCP(sport=5000, dport=80, flags="PA") / Raw(b"GET /a HTTP/1.1\r\nHost: x\r\n\r\n")))
     assert r["proto"] == "HTTP" and r["info"] == "GET /a HTTP/1.1"
-    r = parse_packet(stamp(Ether() / IP() / TCP(sport=5000, dport=443, flags="PA") / Raw(b"\x17\x03\x03abc")))
+    r = parse_packet(stamp(Ether(**E) / IP(**I) / TCP(sport=5000, dport=443, flags="PA") / Raw(b"\x17\x03\x03abc")))
     assert r["proto"] == "TCP" and "TLS" in r["info"]
 
 
 def test_parse_dns_query_and_response():
-    q = parse_packet(stamp(Ether() / IP() / UDP(sport=4000, dport=53) / DNS(qd=DNSQR(qname="example.com"))))
+    q = parse_packet(stamp(Ether(**E) / IP(**I) / UDP(sport=4000, dport=53) / DNS(qd=DNSQR(qname="example.com"))))
     assert q["proto"] == "DNS" and q["info"] == "Query A example.com"
-    pkt = Ether() / IP() / UDP(sport=53, dport=4000) / DNS(qr=1, qd=DNSQR(qname="example.com"), an=DNSRR(rrname="example.com", rdata="93.184.216.34"))
+    pkt = Ether(**E) / IP(**I) / UDP(sport=53, dport=4000) / DNS(qr=1, qd=DNSQR(qname="example.com"), an=DNSRR(rrname="example.com", rdata="93.184.216.34"))
     r = parse_packet(stamp(Ether(bytes(pkt))))
     assert r["info"] == "Response example.com -> 93.184.216.34"
 
 
 def test_parse_icmp_udp_and_times():
-    r = parse_packet(stamp(Ether() / IP() / ICMP(type=8), 105.5), 7, 100.0)
+    r = parse_packet(stamp(Ether(**E) / IP(**I) / ICMP(type=8), 105.5), 7, 100.0)
     assert r["proto"] == "ICMP" and r["info"] == "Echo request" and r["no"] == 7 and r["rel"] == 5.5
-    r = parse_packet(stamp(Ether() / IP() / UDP(sport=1, dport=2) / Raw(b"x")))
+    r = parse_packet(stamp(Ether(**E) / IP(**I) / UDP(sport=1, dport=2) / Raw(b"x")))
     assert r["proto"] == "UDP" and r["len"] > 0
 
 
@@ -238,6 +242,6 @@ def test_exports(sample_dir, tmp_path):
 def test_html_report_escapes(tmp_path):
     from pkt.analyzer import Analysis
     a = Analysis()
-    a.add(stamp(Ether() / IP() / TCP(sport=1, dport=80, flags="PA") / Raw(b"GET /<script>alert(1)</script> HTTP/1.1\r\n\r\n")))
+    a.add(stamp(Ether(**E) / IP(**I) / TCP(sport=1, dport=80, flags="PA") / Raw(b"GET /<script>alert(1)</script> HTTP/1.1\r\n\r\n")))
     html = html_report(a)
     assert "<script>alert" not in html and "&lt;script&gt;" in html
